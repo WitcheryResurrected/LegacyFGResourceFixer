@@ -13,9 +13,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class ResourceFixerTweaker implements ITweaker {
+    public static final CompletableFuture<?>[] COMPLETABLE_FUTURES_DUMMY = new CompletableFuture<?>[0];
+
     @Override
     public void acceptOptions(List<String> args, File gameDir, File assetsDir, String profile) {
     }
@@ -64,6 +69,7 @@ public class ResourceFixerTweaker implements ITweaker {
                 }
             }
 
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
             Set<String> processedIds = new HashSet<>();
             Set<String> failedIds = new HashSet<>();
             List<URL> fixedPath = new ArrayList<>();
@@ -91,19 +97,28 @@ public class ResourceFixerTweaker implements ITweaker {
 
                     Path redirectedOutput = getCommonPath(paths).resolve(id == null ? "redirectedOutput" : id + "RedirectedOutput");
                     try {
+                        List<CompletableFuture<Void>> futures = new ArrayList<>();
                         for (Path directory : paths) {
-                            Files.walk(directory).filter(Files::isRegularFile).forEach(file -> {
+                            Files.walk(directory).filter(Files::isRegularFile).map(file -> CompletableFuture.runAsync(() -> {
                                 try {
                                     Path newLocation = redirectedOutput.resolve(directory.relativize(file));
-                                    if (!Files.exists(newLocation) || !Files.getLastModifiedTime(newLocation).equals(Files.getLastModifiedTime(file))) {
+                                    if (Files.exists(newLocation)) {
+                                        md5.update(Files.readAllBytes(file));
+                                        byte[] fileMd5 = md5.digest();
+                                        md5.update(Files.readAllBytes(newLocation));
+                                        if (!Arrays.equals(fileMd5, md5.digest())) {
+                                            Files.copy(file, newLocation, StandardCopyOption.REPLACE_EXISTING);
+                                        }
+                                    } else {
                                         Files.createDirectories(newLocation.getParent());
-                                        Files.copy(file, newLocation, StandardCopyOption.REPLACE_EXISTING);
+                                        Files.copy(file, newLocation);
                                     }
                                 } catch (IOException e) {
                                     throw new RuntimeException(e); // throw outside the lambda
                                 }
-                            });
+                            })).forEach(futures::add);
                         }
+                        CompletableFuture.allOf(futures.toArray(COMPLETABLE_FUTURES_DUMMY)).join();
                         processedIds.add(id);
                         fixedPath.add(redirectedOutput.toUri().toURL());
                     } catch (IOException | RuntimeException e) {
@@ -121,7 +136,7 @@ public class ResourceFixerTweaker implements ITweaker {
                 classLoader.getSources().clear();
                 classLoader.getSources().addAll(fixedPath);
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
     }
@@ -131,6 +146,7 @@ public class ResourceFixerTweaker implements ITweaker {
         return null;
     }
 
+    @SuppressWarnings("ZeroLengthArrayAllocation")
     @Override
     public String[] getLaunchArguments() {
         return new String[0];

@@ -10,6 +10,10 @@ base {
     archivesName.set("LegacyResourceFixer")
 }
 
+java {
+    withSourcesJar()
+}
+
 repositories {
     maven(url = "https://files.minecraftforge.net/maven")
     maven(url = "https://libraries.minecraft.net/")

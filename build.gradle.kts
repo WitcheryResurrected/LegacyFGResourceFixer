@@ -37,7 +37,6 @@ publishing {
                     version = project.version.toString()
 
                     from(components["java"])
-                    artifact(tasks.named("sourcesJar"))
                 }
             }
 

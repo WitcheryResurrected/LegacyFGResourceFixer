@@ -69,7 +69,6 @@ public class ResourceFixerTweaker implements ITweaker {
                 }
             }
 
-            MessageDigest md5 = MessageDigest.getInstance("MD5");
             Set<String> processedIds = new HashSet<>();
             Set<String> failedIds = new HashSet<>();
             List<URL> fixedPath = new ArrayList<>();
@@ -101,6 +100,7 @@ public class ResourceFixerTweaker implements ITweaker {
                         for (Path directory : paths) {
                             Files.walk(directory).filter(Files::isRegularFile).map(file -> CompletableFuture.runAsync(() -> {
                                 try {
+                                    MessageDigest md5 = MessageDigest.getInstance("MD5");
                                     Path newLocation = redirectedOutput.resolve(directory.relativize(file));
                                     if (Files.exists(newLocation)) {
                                         md5.update(Files.readAllBytes(file));
@@ -113,7 +113,7 @@ public class ResourceFixerTweaker implements ITweaker {
                                         Files.createDirectories(newLocation.getParent());
                                         Files.copy(file, newLocation);
                                     }
-                                } catch (IOException e) {
+                                } catch (IOException | NoSuchAlgorithmException e) {
                                     throw new RuntimeException(e); // throw outside the lambda
                                 }
                             })).forEach(futures::add);
@@ -136,7 +136,7 @@ public class ResourceFixerTweaker implements ITweaker {
                 classLoader.getSources().clear();
                 classLoader.getSources().addAll(fixedPath);
             }
-        } catch (NoSuchFieldException | IllegalAccessException | NoSuchAlgorithmException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             e.printStackTrace();
         }
     }

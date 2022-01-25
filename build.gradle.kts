@@ -3,14 +3,18 @@ plugins {
     java
 }
 
+version = "1.1"
 group = "net.msrandom.resourcefixer"
-version = "1.0"
+
+System.getenv("GITHUB_RUN_NUMBER")?.let { version = "$version-$it" }
 
 base {
     archivesName.set("LegacyResourceFixer")
 }
 
 java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     withSourcesJar()
 }
 

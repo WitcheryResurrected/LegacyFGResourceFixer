@@ -3,7 +3,7 @@ plugins {
     java
 }
 
-version = "1.1"
+version = "1.2"
 group = "net.msrandom.resourcefixer"
 
 System.getenv("GITHUB_RUN_NUMBER")?.let { version = "$version-$it" }

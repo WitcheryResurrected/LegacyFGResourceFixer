@@ -98,26 +98,29 @@ public class ResourceFixerTweaker implements ITweaker {
                     try {
                         List<CompletableFuture<Void>> futures = new ArrayList<>();
                         for (Path directory : paths) {
-                            Files.walk(directory).filter(Files::isRegularFile).map(file -> CompletableFuture.runAsync(() -> {
-                                try {
-                                    MessageDigest md5 = MessageDigest.getInstance("MD5");
-                                    Path newLocation = redirectedOutput.resolve(directory.relativize(file));
-                                    if (Files.exists(newLocation)) {
-                                        md5.update(Files.readAllBytes(file));
-                                        byte[] fileMd5 = md5.digest();
-                                        md5.update(Files.readAllBytes(newLocation));
-                                        if (!Arrays.equals(fileMd5, md5.digest())) {
-                                            Files.copy(file, newLocation, StandardCopyOption.REPLACE_EXISTING);
+                            if (Files.exists(directory)) {
+                                Files.walk(directory).filter(Files::isRegularFile).map(file -> CompletableFuture.runAsync(() -> {
+                                    try {
+                                        MessageDigest md5 = MessageDigest.getInstance("MD5");
+                                        Path newLocation = redirectedOutput.resolve(directory.relativize(file));
+                                        if (Files.exists(newLocation)) {
+                                            md5.update(Files.readAllBytes(file));
+                                            byte[] fileMd5 = md5.digest();
+                                            md5.update(Files.readAllBytes(newLocation));
+                                            if (!Arrays.equals(fileMd5, md5.digest())) {
+                                                Files.copy(file, newLocation, StandardCopyOption.REPLACE_EXISTING);
+                                            }
+                                        } else {
+                                            Files.createDirectories(newLocation.getParent());
+                                            Files.copy(file, newLocation);
                                         }
-                                    } else {
-                                        Files.createDirectories(newLocation.getParent());
-                                        Files.copy(file, newLocation);
+                                    } catch (IOException | NoSuchAlgorithmException e) {
+                                        throw new RuntimeException(e); // throw outside the lambda
                                     }
-                                } catch (IOException | NoSuchAlgorithmException e) {
-                                    throw new RuntimeException(e); // throw outside the lambda
-                                }
-                            })).forEach(futures::add);
+                                })).forEach(futures::add);
+                            }
                         }
+
                         CompletableFuture.allOf(futures.toArray(COMPLETABLE_FUTURES_DUMMY)).join();
                         processedIds.add(id);
                         fixedPath.add(redirectedOutput.toUri().toURL());

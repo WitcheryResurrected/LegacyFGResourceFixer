@@ -25,7 +25,7 @@ public class ResourceFixerTweaker implements ITweaker {
     }
 
     private static void handleEnv(String env, BiConsumer<String, Path> callback) {
-        String modClasses = System.getenv("MOD_CLASSES");
+        String modClasses = System.getenv(env);
         if (modClasses != null) {
             for (String output : modClasses.split(":")) {
                 String[] paths = output.split("%%");
